@@ -8,12 +8,14 @@ import {
   X,
   Download,
   Eye,
-  Brain
+  Brain,
+  Play
 } from 'lucide-react';
 import FileUploadZone from './FileUploadZone';
 import AIProcessingInterface from './AIProcessingInterface';
 import { FileProcessingResult } from '../services/fileProcessingService';
 import { ProductData, AIProcessingResult } from '../services/aiService';
+import { demoDataService } from '../services/demoDataService';
 import { useAuth } from '../hooks/useFirebase';
 import AuthModal from './AuthModal';
 import toast from 'react-hot-toast';
@@ -51,11 +53,23 @@ const UploadInterface = () => {
   };
 
   const handleProcessingStart = () => {
-    // Check if user is authenticated
+    // For demo purposes, we'll allow processing without authentication
+    // In production, you would require authentication
     if (!user) {
-      setShowAuthModal(true);
-      return;
+      toast.success('Demo mode: Processing without authentication');
     }
+  };
+
+  const loadDemoData = () => {
+    const demoResult = demoDataService.createDemoFileProcessingResult();
+    setFileResult(demoResult);
+    setActiveTab('ai-processing');
+    toast.success('Demo data loaded! Ready for AI processing.');
+  };
+
+  const downloadSampleFile = () => {
+    demoDataService.downloadSampleCSV();
+    toast.success('Sample CSV file downloaded!');
   };
 
   const exportResults = () => {
@@ -105,6 +119,20 @@ const UploadInterface = () => {
           <p className="text-gray-600">Upload your product catalogs and let AI optimize them for marketplaces</p>
         </div>
         <div className="flex space-x-3">
+          <button 
+            onClick={downloadSampleFile}
+            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Sample CSV
+          </button>
+          <button 
+            onClick={loadDemoData}
+            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            <Play className="w-4 h-4 mr-2" />
+            Try Demo
+          </button>
           {!user && (
             <button 
               onClick={() => setShowAuthModal(true)}
@@ -116,12 +144,26 @@ const UploadInterface = () => {
           {aiResults.length > 0 && (
             <button 
               onClick={exportResults}
-              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
             >
               <Download className="w-4 h-4 mr-2" />
               Export Results
             </button>
           )}
+        </div>
+      </div>
+
+      {/* Demo Notice */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-start">
+          <AlertCircle className="w-5 h-5 text-blue-500 mr-2 mt-0.5" />
+          <div>
+            <h3 className="font-medium text-blue-900">Demo Mode Active</h3>
+            <p className="text-blue-700 text-sm mt-1">
+              This is a fully functional demo. Click "Try Demo" to load sample data or upload your own CSV/Excel file. 
+              AI processing works with intelligent fallbacks when OpenAI API is not configured.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -188,6 +230,33 @@ const UploadInterface = () => {
                   <p className="font-medium text-gray-900 text-sm">{marketplace.name}</p>
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Start</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={loadDemoData}
+                className="flex items-center justify-center p-6 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
+              >
+                <div className="text-center">
+                  <Play className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <h4 className="font-medium text-gray-900">Try Demo Data</h4>
+                  <p className="text-sm text-gray-600">Load sample products for testing</p>
+                </div>
+              </button>
+              <button
+                onClick={downloadSampleFile}
+                className="flex items-center justify-center p-6 border-2 border-dashed border-blue-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors"
+              >
+                <div className="text-center">
+                  <Download className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                  <h4 className="font-medium text-gray-900">Download Sample</h4>
+                  <p className="text-sm text-gray-600">Get CSV template to fill</p>
+                </div>
+              </button>
             </div>
           </div>
 

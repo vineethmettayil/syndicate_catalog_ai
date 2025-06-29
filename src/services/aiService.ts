@@ -1,10 +1,10 @@
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY || '',
-  dangerouslyAllowBrowser: true // Note: In production, API calls should go through your backend
-});
+// Initialize OpenAI client with fallback for demo
+const openai = import.meta.env.VITE_OPENAI_API_KEY ? new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true
+}) : null;
 
 export interface ProductData {
   sku: string;
@@ -57,7 +57,6 @@ export interface AIProcessingResult {
 }
 
 class AIService {
-  // Marketplace templates configuration
   private marketplaceTemplates: { [key: string]: MarketplaceTemplate } = {
     namshi: {
       name: 'Namshi',
@@ -122,121 +121,144 @@ class AIService {
         format: 'JPEG',
         maxSize: '10MB'
       }
+    },
+    noon: {
+      name: 'Noon',
+      fields: {
+        title: { required: true, type: 'string', maxLength: 250 },
+        brand: { required: true, type: 'string' },
+        category: { required: true, type: 'string' },
+        gender: { required: true, type: 'string', validation: ['Men', 'Women', 'Kids', 'Unisex'] },
+        color: { required: true, type: 'string' },
+        size: { required: false, type: 'string' },
+        material: { required: false, type: 'string' },
+        description: { required: true, type: 'string', maxLength: 1500 },
+        price: { required: true, type: 'number' },
+        images: { required: true, type: 'array' }
+      },
+      imageSpecs: {
+        width: 800,
+        height: 800,
+        format: 'JPEG',
+        maxSize: '5MB'
+      }
+    },
+    trendyol: {
+      name: 'Trendyol',
+      fields: {
+        urun_adi: { required: true, type: 'string', maxLength: 200 },
+        marka: { required: true, type: 'string' },
+        kategori: { required: true, type: 'string' },
+        cinsiyet: { required: true, type: 'string', validation: ['Erkek', 'Kadın', 'Çocuk', 'Unisex'] },
+        renk: { required: true, type: 'string' },
+        beden: { required: false, type: 'string' },
+        malzeme: { required: false, type: 'string' },
+        aciklama: { required: true, type: 'string', maxLength: 1200 },
+        fiyat: { required: true, type: 'number' },
+        resimler: { required: true, type: 'array' }
+      },
+      imageSpecs: {
+        width: 750,
+        height: 1100,
+        format: 'JPEG',
+        maxSize: '3MB'
+      }
+    },
+    sixthstreet: {
+      name: '6th Street',
+      fields: {
+        product_title: { required: true, type: 'string', maxLength: 180 },
+        brand_name: { required: true, type: 'string' },
+        category_name: { required: true, type: 'string' },
+        gender_type: { required: true, type: 'string', validation: ['Men', 'Women', 'Kids', 'Unisex'] },
+        color_name: { required: true, type: 'string' },
+        size_value: { required: false, type: 'string' },
+        material_info: { required: false, type: 'string' },
+        product_desc: { required: true, type: 'string', maxLength: 900 },
+        retail_price: { required: true, type: 'number' },
+        image_list: { required: true, type: 'array' }
+      },
+      imageSpecs: {
+        width: 1200,
+        height: 1600,
+        format: 'WebP',
+        maxSize: '2MB'
+      }
     }
   };
 
-  /**
-   * Analyze and map fields from source data to target marketplace template
-   */
   async mapFieldsWithAI(sourceData: ProductData, marketplace: string): Promise<FieldMapping[]> {
     const template = this.marketplaceTemplates[marketplace];
     if (!template) {
       throw new Error(`Marketplace template not found: ${marketplace}`);
     }
 
-    const sourceFields = Object.keys(sourceData);
-    const targetFields = Object.keys(template.fields);
+    // If OpenAI is available, use it
+    if (openai) {
+      try {
+        const sourceFields = Object.keys(sourceData);
+        const targetFields = Object.keys(template.fields);
 
-    const prompt = `
-You are an expert in e-commerce catalog mapping. Map the source product fields to the target marketplace fields.
+        const prompt = `Map these source product fields to ${marketplace} marketplace fields:
 
 Source Fields: ${sourceFields.join(', ')}
-Target Fields (${marketplace}): ${targetFields.join(', ')}
+Target Fields: ${targetFields.join(', ')}
 
-Source Data Sample:
-${JSON.stringify(sourceData, null, 2)}
+Source Data: ${JSON.stringify(sourceData, null, 2)}
 
-Target Template Requirements:
-${JSON.stringify(template.fields, null, 2)}
+Return JSON with mappings array containing sourceField, targetField, confidence (0-100), and aiSuggestion.`;
 
-Provide a JSON response with field mappings, including confidence scores (0-100) and any necessary transformations:
+        const response = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.3,
+          max_tokens: 1000
+        });
 
-{
-  "mappings": [
-    {
-      "sourceField": "source_field_name",
-      "targetField": "target_field_name", 
-      "confidence": 95,
-      "transformation": "description of any needed transformation",
-      "aiSuggestion": "explanation of the mapping logic"
+        const result = JSON.parse(response.choices[0].message.content || '{"mappings": []}');
+        return result.mappings || [];
+      } catch (error) {
+        console.warn('OpenAI mapping failed, using fallback:', error);
+      }
     }
-  ]
-}
 
-Focus on semantic similarity and marketplace-specific naming conventions.
-`;
-
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 1500
-      });
-
-      const result = JSON.parse(response.choices[0].message.content || '{"mappings": []}');
-      return result.mappings || [];
-    } catch (error) {
-      console.error('AI field mapping error:', error);
-      return this.fallbackFieldMapping(sourceData, marketplace);
-    }
+    // Fallback intelligent mapping
+    return this.intelligentFieldMapping(sourceData, marketplace);
   }
 
-  /**
-   * Generate marketplace-specific content using AI
-   */
   async generateMarketplaceContent(productData: ProductData, marketplace: string): Promise<{ [key: string]: string }> {
     const template = this.marketplaceTemplates[marketplace];
     if (!template) {
       throw new Error(`Marketplace template not found: ${marketplace}`);
     }
 
-    const prompt = `
-You are an expert e-commerce copywriter. Generate optimized product content for ${marketplace} marketplace.
+    // If OpenAI is available, use it
+    if (openai) {
+      try {
+        const prompt = `Generate optimized product content for ${marketplace}:
 
-Product Data:
-${JSON.stringify(productData, null, 2)}
+Product: ${JSON.stringify(productData, null, 2)}
 
-Marketplace Requirements (${marketplace}):
-${JSON.stringify(template.fields, null, 2)}
+Create compelling, SEO-friendly content that follows ${marketplace} guidelines. Return JSON with title, description, and other relevant fields.`;
 
-Generate content that:
-1. Follows ${marketplace} style guidelines
-2. Is SEO optimized with relevant keywords
-3. Highlights key product features
-4. Meets character limits
-5. Appeals to the target audience
+        const response = await openai.chat.completions.create({
+          model: "gpt-3.5-turbo",
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1500
+        });
 
-Provide a JSON response with generated content:
-
-{
-  "title": "optimized product title",
-  "description": "compelling product description with bullet points",
-  "category": "appropriate category classification",
-  "keywords": "relevant search keywords",
-  "features": ["key feature 1", "key feature 2", "key feature 3"]
-}
-`;
-
-    try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-4",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.7,
-        max_tokens: 2000
-      });
-
-      const result = JSON.parse(response.choices[0].message.content || '{}');
-      return result;
-    } catch (error) {
-      console.error('AI content generation error:', error);
-      return this.fallbackContentGeneration(productData, marketplace);
+        const result = JSON.parse(response.choices[0].message.content || '{}');
+        return result;
+      } catch (error) {
+        console.warn('OpenAI content generation failed, using fallback:', error);
+      }
     }
+
+    // Fallback content generation
+    return this.generateFallbackContent(productData, marketplace);
   }
 
-  /**
-   * Validate product data against marketplace compliance rules
-   */
   async validateCompliance(productData: ProductData, marketplace: string): Promise<string[]> {
     const template = this.marketplaceTemplates[marketplace];
     if (!template) {
@@ -251,14 +273,12 @@ Provide a JSON response with generated content:
         issues.push(`Missing required field: ${field}`);
       }
 
-      // Check field length limits
       if (config.maxLength && productData[field] && 
           typeof productData[field] === 'string' && 
           productData[field].length > config.maxLength) {
         issues.push(`Field '${field}' exceeds maximum length of ${config.maxLength} characters`);
       }
 
-      // Check validation rules
       if (config.validation && productData[field] && 
           !config.validation.includes(productData[field])) {
         issues.push(`Field '${field}' must be one of: ${config.validation.join(', ')}`);
@@ -275,9 +295,6 @@ Provide a JSON response with generated content:
     return issues;
   }
 
-  /**
-   * Process complete product data with AI enhancement
-   */
   async processProductWithAI(productData: ProductData, marketplace: string): Promise<AIProcessingResult> {
     try {
       // Step 1: Map fields
@@ -286,16 +303,31 @@ Provide a JSON response with generated content:
       // Step 2: Generate enhanced content
       const generatedContent = await this.generateMarketplaceContent(productData, marketplace);
 
-      // Step 3: Validate compliance
-      const complianceIssues = await this.validateCompliance(productData, marketplace);
+      // Step 3: Apply mappings to create final product data
+      const mappedData = { ...productData };
+      mappings.forEach(mapping => {
+        if (productData[mapping.sourceField]) {
+          mappedData[mapping.targetField] = productData[mapping.sourceField];
+        }
+      });
 
-      // Step 4: Calculate overall confidence
-      const avgConfidence = mappings.reduce((sum, mapping) => sum + mapping.confidence, 0) / mappings.length;
-      const confidence = Math.round(avgConfidence * (complianceIssues.length === 0 ? 1 : 0.8));
+      // Step 4: Merge generated content
+      Object.assign(mappedData, generatedContent);
+
+      // Step 5: Validate compliance
+      const complianceIssues = await this.validateCompliance(mappedData, marketplace);
+
+      // Step 6: Calculate confidence
+      const avgMappingConfidence = mappings.length > 0 
+        ? mappings.reduce((sum, mapping) => sum + mapping.confidence, 0) / mappings.length 
+        : 70;
+      
+      const complianceScore = complianceIssues.length === 0 ? 100 : Math.max(50, 100 - (complianceIssues.length * 15));
+      const confidence = Math.round((avgMappingConfidence + complianceScore) / 2);
 
       return {
         mappings,
-        generatedContent,
+        generatedContent: mappedData,
         complianceIssues,
         confidence
       };
@@ -305,9 +337,6 @@ Provide a JSON response with generated content:
     }
   }
 
-  /**
-   * Batch process multiple products
-   */
   async batchProcessProducts(products: ProductData[], marketplace: string, 
                            onProgress?: (processed: number, total: number) => void): Promise<AIProcessingResult[]> {
     const results: AIProcessingResult[] = [];
@@ -321,8 +350,8 @@ Provide a JSON response with generated content:
           onProgress(i + 1, products.length);
         }
         
-        // Add small delay to avoid rate limiting
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Add small delay to avoid overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 200));
       } catch (error) {
         console.error(`Error processing product ${products[i].sku}:`, error);
         results.push({
@@ -337,67 +366,231 @@ Provide a JSON response with generated content:
     return results;
   }
 
-  /**
-   * Get marketplace template information
-   */
-  getMarketplaceTemplate(marketplace: string): MarketplaceTemplate | null {
-    return this.marketplaceTemplates[marketplace] || null;
-  }
-
-  /**
-   * Get all supported marketplaces
-   */
-  getSupportedMarketplaces(): string[] {
-    return Object.keys(this.marketplaceTemplates);
-  }
-
-  // Fallback methods for when AI services are unavailable
-  private fallbackFieldMapping(sourceData: ProductData, marketplace: string): FieldMapping[] {
-    const commonMappings: { [key: string]: { [key: string]: string } } = {
+  // Intelligent fallback mapping without AI
+  private intelligentFieldMapping(sourceData: ProductData, marketplace: string): FieldMapping[] {
+    const template = this.marketplaceTemplates[marketplace];
+    const mappings: FieldMapping[] = [];
+    
+    // Common field mappings by marketplace
+    const marketplaceMappings: { [key: string]: { [key: string]: string } } = {
       namshi: {
-        'product_name': 'title',
-        'brand_name': 'brand',
-        'category_path': 'category',
-        'gender_target': 'gender',
-        'color_desc': 'color',
-        'size_info': 'size',
-        'material_type': 'material',
-        'product_desc': 'description',
-        'selling_price': 'price',
-        'product_images': 'images'
+        'product_name': 'title', 'title': 'title', 'name': 'title',
+        'brand_name': 'brand', 'brand': 'brand',
+        'category': 'category', 'product_type': 'category',
+        'gender': 'gender', 'target_gender': 'gender',
+        'color': 'color', 'color_name': 'color',
+        'size': 'size', 'size_name': 'size',
+        'material': 'material', 'fabric': 'material',
+        'description': 'description', 'product_description': 'description',
+        'price': 'price', 'selling_price': 'price',
+        'images': 'images', 'image_urls': 'images'
+      },
+      centrepoint: {
+        'title': 'product_name', 'product_name': 'product_name', 'name': 'product_name',
+        'brand': 'brand_name', 'brand_name': 'brand_name',
+        'category': 'product_type', 'product_type': 'product_type',
+        'gender': 'target_gender', 'target_gender': 'target_gender',
+        'color': 'primary_color', 'color_name': 'primary_color',
+        'size': 'size_info', 'size_name': 'size_info',
+        'material': 'fabric_material', 'fabric': 'fabric_material',
+        'description': 'product_description', 'product_desc': 'product_description',
+        'price': 'selling_price', 'selling_price': 'selling_price',
+        'images': 'image_urls', 'image_urls': 'image_urls'
       }
     };
 
-    const mappings: FieldMapping[] = [];
     const sourceFields = Object.keys(sourceData);
-    const marketplaceMappings = commonMappings[marketplace] || {};
+    const targetFields = Object.keys(template.fields);
+    const mappingRules = marketplaceMappings[marketplace] || {};
 
     sourceFields.forEach(sourceField => {
-      const targetField = marketplaceMappings[sourceField] || sourceField;
-      mappings.push({
-        sourceField,
-        targetField,
-        confidence: 75,
-        transformation: 'Direct mapping',
-        aiSuggestion: 'Fallback mapping based on common patterns'
-      });
+      const normalizedSource = sourceField.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      
+      // Direct mapping
+      if (mappingRules[sourceField]) {
+        mappings.push({
+          sourceField,
+          targetField: mappingRules[sourceField],
+          confidence: 95,
+          transformation: 'Direct mapping',
+          aiSuggestion: 'Exact field match found'
+        });
+        return;
+      }
+
+      // Fuzzy matching
+      const bestMatch = this.findBestFieldMatch(normalizedSource, targetFields);
+      if (bestMatch.confidence > 70) {
+        mappings.push({
+          sourceField,
+          targetField: bestMatch.field,
+          confidence: bestMatch.confidence,
+          transformation: 'Fuzzy matching',
+          aiSuggestion: `Matched based on field name similarity`
+        });
+      }
     });
 
     return mappings;
   }
 
-  private fallbackContentGeneration(productData: ProductData, marketplace: string): { [key: string]: string } {
-    return {
-      title: productData.title || `${productData.brand} ${productData.category}`,
-      description: productData.description || `High-quality ${productData.category} from ${productData.brand}`,
-      category: productData.category || 'Fashion',
-      keywords: `${productData.brand}, ${productData.category}, ${productData.color}`,
-      features: [
-        `Brand: ${productData.brand}`,
-        `Material: ${productData.material || 'Premium quality'}`,
-        `Color: ${productData.color}`
-      ]
+  private findBestFieldMatch(sourceField: string, targetFields: string[]): { field: string; confidence: number } {
+    let bestMatch = { field: '', confidence: 0 };
+
+    targetFields.forEach(targetField => {
+      const normalizedTarget = targetField.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const similarity = this.calculateStringSimilarity(sourceField, normalizedTarget);
+      
+      if (similarity > bestMatch.confidence) {
+        bestMatch = { field: targetField, confidence: Math.round(similarity * 100) };
+      }
+    });
+
+    return bestMatch;
+  }
+
+  private calculateStringSimilarity(str1: string, str2: string): number {
+    const longer = str1.length > str2.length ? str1 : str2;
+    const shorter = str1.length > str2.length ? str2 : str1;
+    
+    if (longer.length === 0) return 1.0;
+    
+    const editDistance = this.levenshteinDistance(longer, shorter);
+    return (longer.length - editDistance) / longer.length;
+  }
+
+  private levenshteinDistance(str1: string, str2: string): number {
+    const matrix = [];
+    
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= str1.length; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= str2.length; i++) {
+      for (let j = 1; j <= str1.length; j++) {
+        if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+          matrix[i][j] = matrix[i - 1][j - 1];
+        } else {
+          matrix[i][j] = Math.min(
+            matrix[i - 1][j - 1] + 1,
+            matrix[i][j - 1] + 1,
+            matrix[i - 1][j] + 1
+          );
+        }
+      }
+    }
+    
+    return matrix[str2.length][str1.length];
+  }
+
+  private generateFallbackContent(productData: ProductData, marketplace: string): { [key: string]: string } {
+    const template = this.marketplaceTemplates[marketplace];
+    const content: { [key: string]: string } = {};
+
+    // Generate title
+    if (template.fields.title || template.fields.product_name || template.fields.item_name) {
+      const titleField = Object.keys(template.fields).find(f => 
+        f.includes('title') || f.includes('name')
+      );
+      if (titleField) {
+        content[titleField] = this.generateTitle(productData);
+      }
+    }
+
+    // Generate description
+    if (template.fields.description || template.fields.product_description) {
+      const descField = Object.keys(template.fields).find(f => 
+        f.includes('description') || f.includes('desc')
+      );
+      if (descField) {
+        content[descField] = this.generateDescription(productData);
+      }
+    }
+
+    // Map other fields
+    Object.keys(template.fields).forEach(field => {
+      if (!content[field]) {
+        const sourceValue = this.findSourceValue(productData, field);
+        if (sourceValue) {
+          content[field] = sourceValue;
+        }
+      }
+    });
+
+    return content;
+  }
+
+  private generateTitle(productData: ProductData): string {
+    const parts = [];
+    
+    if (productData.brand) parts.push(productData.brand);
+    if (productData.title) parts.push(productData.title);
+    else if (productData.category) parts.push(productData.category);
+    if (productData.color) parts.push(`- ${productData.color}`);
+    if (productData.material) parts.push(`(${productData.material})`);
+    
+    return parts.join(' ').substring(0, 200);
+  }
+
+  private generateDescription(productData: ProductData): string {
+    if (productData.description) return productData.description;
+    
+    const parts = [];
+    parts.push(`Premium ${productData.category || 'product'} from ${productData.brand || 'top brand'}.`);
+    
+    if (productData.material) {
+      parts.push(`Crafted from high-quality ${productData.material} for comfort and durability.`);
+    }
+    
+    if (productData.color) {
+      parts.push(`Available in ${productData.color} color.`);
+    }
+    
+    if (productData.size) {
+      parts.push(`Size: ${productData.size}.`);
+    }
+    
+    parts.push('Perfect for everyday wear and special occasions.');
+    
+    return parts.join(' ');
+  }
+
+  private findSourceValue(productData: ProductData, targetField: string): string | null {
+    const fieldMappings: { [key: string]: string[] } = {
+      brand: ['brand', 'brand_name', 'manufacturer'],
+      category: ['category', 'product_type', 'item_type'],
+      color: ['color', 'color_name', 'primary_color'],
+      size: ['size', 'size_name', 'size_info'],
+      material: ['material', 'fabric', 'material_type'],
+      gender: ['gender', 'target_gender', 'department'],
+      price: ['price', 'selling_price', 'list_price']
     };
+
+    const normalizedTarget = targetField.toLowerCase();
+    
+    for (const [key, sources] of Object.entries(fieldMappings)) {
+      if (normalizedTarget.includes(key)) {
+        for (const source of sources) {
+          if (productData[source]) {
+            return productData[source].toString();
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  getMarketplaceTemplate(marketplace: string): MarketplaceTemplate | null {
+    return this.marketplaceTemplates[marketplace] || null;
+  }
+
+  getSupportedMarketplaces(): string[] {
+    return Object.keys(this.marketplaceTemplates);
   }
 }
 

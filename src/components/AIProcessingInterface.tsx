@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Brain, Target, Wand2, CheckCircle, AlertTriangle, Eye } from 'lucide-react';
+import { Brain, Target, Wand2, CheckCircle, AlertTriangle, Eye, Download } from 'lucide-react';
 import { aiService, ProductData, AIProcessingResult } from '../services/aiService';
-import { firebaseService } from '../services/firebaseService';
 import ProcessingProgress from './ProcessingProgress';
 import toast from 'react-hot-toast';
 
@@ -25,6 +24,7 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
   const [processedCount, setProcessedCount] = useState(0);
   const [successCount, setSuccessCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
+  const [showResults, setShowResults] = useState(false);
 
   const processingSteps = [
     { id: 'field_mapping', label: 'AI Field Mapping', status: 'pending' as const },
@@ -57,6 +57,7 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
     setSuccessCount(0);
     setFailedCount(0);
     setProgress(0);
+    setShowResults(false);
 
     try {
       // Reset steps
@@ -65,8 +66,10 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
       // Step 1: Field Mapping
       updateStepStatus('field_mapping', 'processing');
       toast.success('Starting AI field mapping...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Step 2: Content Generation & Processing
+      updateStepStatus('field_mapping', 'completed');
       updateStepStatus('content_generation', 'processing');
       
       const processedResults = await aiService.batchProcessProducts(
@@ -76,31 +79,24 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
           const progressPercent = Math.round((processed / total) * 100);
           setProgress(progressPercent);
           setProcessedCount(processed);
-          
-          // Update success/failed counts based on results
-          const currentResults = results.slice(0, processed);
-          const successful = currentResults.filter(r => r.confidence > 70).length;
-          const failed = currentResults.filter(r => r.confidence <= 70).length;
-          setSuccessCount(successful);
-          setFailedCount(failed);
         }
       );
 
-      updateStepStatus('field_mapping', 'completed');
       updateStepStatus('content_generation', 'completed');
 
       // Step 3: Compliance Check
       updateStepStatus('compliance_check', 'processing');
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       // Additional compliance validation
       const finalResults = processedResults.map(result => {
         const additionalIssues: string[] = [];
         
         // Check for missing critical fields
-        if (!result.generatedContent.title) {
+        if (!result.generatedContent.title && !result.generatedContent.product_name && !result.generatedContent.item_name) {
           additionalIssues.push('Missing product title');
         }
-        if (!result.generatedContent.description) {
+        if (!result.generatedContent.description && !result.generatedContent.product_description) {
           additionalIssues.push('Missing product description');
         }
 
@@ -114,6 +110,7 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
 
       // Step 4: Quality Review
       updateStepStatus('quality_review', 'processing');
+      await new Promise(resolve => setTimeout(resolve, 600));
       
       // Calculate final stats
       const finalSuccessCount = finalResults.filter(r => r.confidence > 70 && r.complianceIssues.length === 0).length;
@@ -125,6 +122,7 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
       updateStepStatus('quality_review', 'completed');
 
       setResults(finalResults);
+      setShowResults(true);
       onProcessingComplete(finalResults);
 
       toast.success(`Processing completed! ${finalSuccessCount} products ready for export.`);
@@ -144,6 +142,41 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
 
   const getMarketplaceTemplate = () => {
     return aiService.getMarketplaceTemplate(selectedMarketplace);
+  };
+
+  const exportResults = () => {
+    if (results.length === 0) {
+      toast.error('No results to export');
+      return;
+    }
+
+    const exportData = results.map((result, index) => ({
+      sku: products[index]?.sku || `SKU_${index + 1}`,
+      ...result.generatedContent,
+      confidence: result.confidence,
+      issues: result.complianceIssues.join('; '),
+      mappings_applied: result.mappings.length
+    }));
+
+    const headers = Object.keys(exportData[0]);
+    const csvContent = [
+      headers.join(','),
+      ...exportData.map(row => 
+        headers.map(header => `"${row[header] || ''}"`).join(',')
+      )
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedMarketplace}_processed_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    toast.success('Results exported successfully!');
   };
 
   const template = getMarketplaceTemplate();
@@ -210,14 +243,25 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-lg font-semibold text-gray-900">AI Processing Options</h4>
-          <button
-            onClick={startProcessing}
-            disabled={processing || products.length === 0}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Wand2 className="w-5 h-5 mr-2" />
-            {processing ? 'Processing...' : 'Start AI Processing'}
-          </button>
+          <div className="flex space-x-3">
+            {showResults && (
+              <button
+                onClick={exportResults}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export Results
+              </button>
+            )}
+            <button
+              onClick={startProcessing}
+              disabled={processing || products.length === 0}
+              className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Wand2 className="w-5 h-5 mr-2" />
+              {processing ? 'Processing...' : 'Start AI Processing'}
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -267,13 +311,16 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
       )}
 
       {/* Results Preview */}
-      {results.length > 0 && !processing && (
+      {showResults && results.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-gray-900">Processing Results</h4>
-            <button className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+            <button 
+              onClick={exportResults}
+              className="flex items-center px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+            >
               <Eye className="w-4 h-4 mr-2" />
-              View Details
+              Export Results
             </button>
           </div>
 
@@ -305,7 +352,7 @@ const AIProcessingInterface: React.FC<AIProcessingInterfaceProps> = ({
                   )}
                   <div>
                     <p className="font-medium text-gray-900">
-                      Product {index + 1}
+                      {products[index]?.sku || `Product ${index + 1}`}
                     </p>
                     <p className="text-sm text-gray-600">
                       {result.complianceIssues.length > 0 
