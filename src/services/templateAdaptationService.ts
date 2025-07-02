@@ -770,8 +770,8 @@ class TemplateAdaptationService {
   ): Promise<ProductData> {
     const adaptedProduct: ProductData = { ...productData };
     
-    // Apply mappings
-    adaptationResult.mappings.forEach(mapping => {
+    // Apply mappings using for...of loop to handle async operations properly
+    for (const mapping of adaptationResult.mappings) {
       const sourceValue = productData[mapping.sourceAttribute];
       
       if (sourceValue !== undefined) {
@@ -792,7 +792,7 @@ class TemplateAdaptationService {
       } else if (mapping.fallback) {
         adaptedProduct[mapping.targetAttribute] = mapping.fallback;
       }
-    });
+    }
     
     // Remove unmapped attributes
     adaptationResult.removedAttributes.forEach(attrName => {
