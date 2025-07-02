@@ -9,281 +9,333 @@ import {
   Clock,
   Users,
   Play,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Zap,
+  Brain,
+  Target,
+  Layers
 } from 'lucide-react';
 import { demoDataService } from '../services/demoDataService';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
-    skusProcessed: 2847,
-    successRate: 94.2,
-    pendingReview: 127,
-    failedUploads: 23
+    skusProcessed: 12847,
+    successRate: 96.8,
+    pendingReview: 89,
+    failedUploads: 12,
+    templatesAdapted: 156,
+    attributesGenerated: 2341
   });
 
   const recentActivity = [
-    { id: 1, action: 'Namshi template updated', time: '2 minutes ago', type: 'info' },
-    { id: 2, action: '156 SKUs exported to Centrepoint', time: '15 minutes ago', type: 'success' },
-    { id: 3, action: 'Image compliance check failed for 12 SKUs', time: '1 hour ago', type: 'warning' },
-    { id: 4, action: 'New batch uploaded by Demo User', time: '2 hours ago', type: 'info' },
-    { id: 5, action: 'AI processing completed for 89 products', time: '3 hours ago', type: 'success' },
+    { id: 1, action: 'Auto-adapted Namshi template v3.0 with 12 new attributes', time: '2 minutes ago', type: 'template', icon: Target },
+    { id: 2, action: 'AI generated 247 missing product descriptions', time: '8 minutes ago', type: 'ai', icon: Brain },
+    { id: 3, action: 'Bulk processed 1,156 SKUs for Amazon marketplace', time: '15 minutes ago', type: 'success', icon: CheckCircle },
+    { id: 4, action: 'Template mapping detected 23 attribute conflicts', time: '32 minutes ago', type: 'warning', icon: AlertTriangle },
+    { id: 5, action: 'Smart attribute inference completed for 89 products', time: '1 hour ago', type: 'ai', icon: Zap },
+    { id: 6, action: 'New marketplace template uploaded: Trendyol v2.1', time: '2 hours ago', type: 'template', icon: Upload },
   ];
 
   const marketplaces = [
-    { name: 'Namshi', processed: 842, success: 96.2, color: 'bg-purple-500' },
-    { name: 'Centrepoint', processed: 623, success: 94.1, color: 'bg-blue-500' },
-    { name: 'Amazon', processed: 445, success: 89.3, color: 'bg-orange-500' },
-    { name: 'Noon', processed: 387, success: 92.8, color: 'bg-yellow-500' },
-    { name: 'Trendyol', processed: 298, success: 88.7, color: 'bg-red-500' },
-    { name: '6th Street', processed: 252, success: 91.4, color: 'bg-green-500' },
+    { name: 'Namshi', processed: 3247, success: 97.8, adaptations: 45, color: 'bg-purple-500' },
+    { name: 'Amazon', processed: 2891, success: 94.2, adaptations: 38, color: 'bg-orange-500' },
+    { name: 'Centrepoint', processed: 2156, success: 96.1, adaptations: 29, color: 'bg-blue-500' },
+    { name: 'Noon', processed: 1834, success: 95.3, adaptations: 22, color: 'bg-yellow-500' },
+    { name: 'Trendyol', parsed: 1456, success: 93.7, adaptations: 31, color: 'bg-red-500' },
+    { name: '6th Street', processed: 1263, success: 94.9, adaptations: 18, color: 'bg-green-500' },
+  ];
+
+  const aiInsights = [
+    {
+      title: 'Template Adaptation Success',
+      metric: '96.8%',
+      description: 'Automatic template adaptations successful',
+      trend: '+12.3%',
+      icon: Target,
+      color: 'text-blue-600'
+    },
+    {
+      title: 'AI Content Generation',
+      metric: '2,341',
+      description: 'Attributes auto-generated this week',
+      trend: '+28.7%',
+      icon: Brain,
+      color: 'text-purple-600'
+    },
+    {
+      title: 'Processing Speed',
+      metric: '847/min',
+      description: 'SKUs processed per minute',
+      trend: '+15.2%',
+      icon: Zap,
+      color: 'text-green-600'
+    },
+    {
+      title: 'Compliance Rate',
+      metric: '98.2%',
+      description: 'Products meeting marketplace standards',
+      trend: '+5.1%',
+      icon: CheckCircle,
+      color: 'text-emerald-600'
+    }
   ];
 
   const handleQuickUpload = () => {
-    // Navigate to upload interface
     window.location.hash = '#upload';
-    toast.success('Redirecting to upload interface...');
+    toast.success('Redirecting to Smart Upload interface...');
   };
 
   const handleTryDemo = () => {
-    // Load demo data and navigate to processing
     window.location.hash = '#upload';
-    toast.success('Demo data ready! Navigate to Upload & AI Processing tab.');
+    toast.success('Demo data ready! Experience intelligent template adaptation.');
   };
 
   const downloadSample = () => {
     demoDataService.downloadSampleCSV();
-    toast.success('Sample CSV downloaded!');
+    toast.success('Enhanced sample CSV downloaded with all attributes!');
   };
 
-  const statsData = [
-    {
-      title: 'SKUs Processed',
-      value: stats.skusProcessed.toLocaleString(),
-      change: '+12.5%',
-      changeType: 'positive',
-      icon: Package,
-      color: 'blue'
-    },
-    {
-      title: 'Success Rate',
-      value: `${stats.successRate}%`,
-      change: '+2.1%',
-      changeType: 'positive',
-      icon: CheckCircle,
-      color: 'green'
-    },
-    {
-      title: 'Pending Review',
-      value: stats.pendingReview.toString(),
-      change: '-8.3%',
-      changeType: 'negative',
-      icon: Clock,
-      color: 'orange'
-    },
-    {
-      title: 'Failed Uploads',
-      value: stats.failedUploads.toString(),
-      change: '+5.2%',
-      changeType: 'negative',
-      icon: AlertTriangle,
-      color: 'red'
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'template': return Target;
+      case 'ai': return Brain;
+      case 'success': return CheckCircle;
+      case 'warning': return AlertTriangle;
+      default: return Clock;
     }
-  ];
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'template': return 'text-blue-600 bg-blue-50';
+      case 'ai': return 'text-purple-600 bg-purple-50';
+      case 'success': return 'text-green-600 bg-green-50';
+      case 'warning': return 'text-orange-600 bg-orange-50';
+      default: return 'text-gray-600 bg-gray-50';
+    }
+  };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600">Monitor your catalog automation performance</p>
+          <h1 className="text-3xl font-bold text-gray-900">Syndicate AI Dashboard</h1>
+          <p className="text-gray-600 mt-1">Intelligent marketplace catalog automation with adaptive templates</p>
         </div>
         <div className="flex space-x-3">
           <button 
             onClick={downloadSample}
-            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all transform hover:scale-105 shadow-lg"
           >
             <FileSpreadsheet className="w-4 h-4 mr-2" />
-            Sample CSV
+            Enhanced Sample
           </button>
           <button 
             onClick={handleTryDemo}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
           >
             <Play className="w-4 h-4 mr-2" />
-            Try Demo
+            Try AI Demo
           </button>
           <button 
             onClick={handleQuickUpload}
-            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg"
           >
             <Upload className="w-4 h-4 mr-2" />
-            Quick Upload
+            Smart Upload
           </button>
         </div>
       </div>
 
-      {/* Demo Notice */}
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-6">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Play className="w-5 h-5 text-blue-600" />
+      {/* AI Capabilities Banner */}
+      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="relative z-10">
+          <div className="flex items-center mb-4">
+            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mr-4">
+              <Zap className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Syndicate AI Engine</h2>
+              <p className="text-blue-100">Next-generation template adaptation & content generation</p>
             </div>
           </div>
-          <div className="ml-4">
-            <h3 className="text-lg font-semibold text-gray-900">Welcome to CatalogAI Demo</h3>
-            <p className="text-gray-600 mt-1">
-              Experience the full power of AI-driven catalog automation. Upload your own files or try our demo data to see how we transform product catalogs for multiple marketplaces.
-            </p>
-            <div className="mt-4 flex space-x-3">
-              <button 
-                onClick={handleTryDemo}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
-              >
-                Try Demo Data
-              </button>
-              <button 
-                onClick={downloadSample}
-                className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-              >
-                Download Template
-              </button>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
+            <div className="text-center">
+              <Target className="w-8 h-8 mx-auto mb-2 text-blue-200" />
+              <h3 className="font-semibold">Auto Template Adaptation</h3>
+              <p className="text-sm text-blue-100">Intelligent field mapping & transformation</p>
+            </div>
+            <div className="text-center">
+              <Brain className="w-8 h-8 mx-auto mb-2 text-purple-200" />
+              <h3 className="font-semibold">AI Content Generation</h3>
+              <p className="text-sm text-purple-100">Smart attribute inference & creation</p>
+            </div>
+            <div className="text-center">
+              <Layers className="w-8 h-8 mx-auto mb-2 text-teal-200" />
+              <h3 className="font-semibold">Dynamic Processing</h3>
+              <p className="text-sm text-teal-100">Real-time marketplace compliance</p>
+            </div>
+            <div className="text-center">
+              <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-200" />
+              <h3 className="font-semibold">Quality Assurance</h3>
+              <p className="text-sm text-green-100">Automated validation & optimization</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* AI Insights Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {statsData.map((stat, index) => {
-          const Icon = stat.icon;
+        {aiInsights.map((insight, index) => {
+          const Icon = insight.icon;
           return (
-            <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between">
-                <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
-                  stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
-                  stat.color === 'green' ? 'bg-green-50 text-green-600' :
-                  stat.color === 'orange' ? 'bg-orange-50 text-orange-600' :
-                  'bg-red-50 text-red-600'
-                }`}>
+            <div key={index} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50 ${insight.color}`}>
                   <Icon className="w-6 h-6" />
                 </div>
-                <span className={`text-sm font-medium ${
-                  stat.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {stat.change}
+                <span className="text-sm font-medium text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                  {insight.trend}
                 </span>
               </div>
-              <div className="mt-4">
-                <h3 className="text-2xl font-bold text-gray-900">{stat.value}</h3>
-                <p className="text-gray-600 text-sm">{stat.title}</p>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-1">{insight.metric}</h3>
+                <p className="text-sm font-medium text-gray-900 mb-1">{insight.title}</p>
+                <p className="text-xs text-gray-600">{insight.description}</p>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Marketplace Performance */}
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Marketplace Performance</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Enhanced Marketplace Performance */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900">Marketplace Intelligence</h3>
+            <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span>AI Active</span>
+            </div>
+          </div>
           <div className="space-y-4">
             {marketplaces.map((marketplace, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <div className="flex items-center space-x-3">
-                  <div className={`w-3 h-3 rounded-full ${marketplace.color}`}></div>
+              <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300 border border-gray-100">
+                <div className="flex items-center space-x-4">
+                  <div className={`w-4 h-4 rounded-full ${marketplace.color}`}></div>
                   <div>
-                    <p className="font-medium text-gray-900">{marketplace.name}</p>
-                    <p className="text-sm text-gray-600">{marketplace.processed} SKUs processed</p>
+                    <p className="font-semibold text-gray-900">{marketplace.name}</p>
+                    <p className="text-sm text-gray-600">{marketplace.processed?.toLocaleString() || marketplace.parsed?.toLocaleString()} SKUs processed</p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{marketplace.success}%</p>
-                  <p className="text-sm text-gray-600">Success Rate</p>
+                  <div className="flex items-center space-x-4">
+                    <div>
+                      <p className="font-bold text-gray-900">{marketplace.success}%</p>
+                      <p className="text-xs text-gray-600">Success Rate</p>
+                    </div>
+                    <div>
+                      <p className="font-bold text-blue-600">{marketplace.adaptations}</p>
+                      <p className="text-xs text-gray-600">Adaptations</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Recent Activity */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">Recent Activity</h3>
+        {/* Enhanced Recent Activity */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+          <h3 className="text-xl font-bold text-gray-900 mb-6">AI Activity Stream</h3>
           <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-start space-x-3">
-                <div className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
-                  activity.type === 'success' ? 'bg-green-500' :
-                  activity.type === 'warning' ? 'bg-orange-500' :
-                  'bg-blue-500'
-                }`}></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-900">{activity.action}</p>
-                  <p className="text-xs text-gray-500">{activity.time}</p>
+            {recentActivity.map((activity) => {
+              const Icon = getActivityIcon(activity.type);
+              return (
+                <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getActivityColor(activity.type)}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 leading-relaxed">{activity.action}</p>
+                    <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Enhanced Quick Actions */}
+      <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+        <h3 className="text-xl font-bold text-gray-900 mb-6">Intelligent Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <button 
             onClick={handleQuickUpload}
-            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            className="group flex items-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-all duration-300 text-left"
           >
-            <Upload className="w-8 h-8 text-blue-600 mr-4" />
+            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mr-4 group-hover:bg-blue-200 transition-colors">
+              <Upload className="w-6 h-6 text-blue-600" />
+            </div>
             <div>
-              <p className="font-medium text-gray-900">Upload New Catalog</p>
-              <p className="text-sm text-gray-600">Import Excel or CSV files</p>
+              <p className="font-semibold text-gray-900">Smart Upload & AI Processing</p>
+              <p className="text-sm text-gray-600">Auto-adapt templates with AI enhancement</p>
             </div>
           </button>
+          
           <button 
             onClick={handleTryDemo}
-            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            className="group flex items-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-green-400 hover:bg-green-50 transition-all duration-300 text-left"
           >
-            <TrendingUp className="w-8 h-8 text-green-600 mr-4" />
+            <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mr-4 group-hover:bg-green-200 transition-colors">
+              <Brain className="w-6 h-6 text-green-600" />
+            </div>
             <div>
-              <p className="font-medium text-gray-900">Try AI Processing</p>
-              <p className="text-sm text-gray-600">Test with sample data</p>
+              <p className="font-semibold text-gray-900">Experience AI Demo</p>
+              <p className="text-sm text-gray-600">See intelligent template adaptation in action</p>
             </div>
           </button>
+          
           <button 
             onClick={downloadSample}
-            className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+            className="group flex items-center p-6 border-2 border-dashed border-gray-200 rounded-xl hover:border-purple-400 hover:bg-purple-50 transition-all duration-300 text-left"
           >
-            <Users className="w-8 h-8 text-purple-600 mr-4" />
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mr-4 group-hover:bg-purple-200 transition-colors">
+              <FileSpreadsheet className="w-6 h-6 text-purple-600" />
+            </div>
             <div>
-              <p className="font-medium text-gray-900">Get Template</p>
-              <p className="text-sm text-gray-600">Download CSV template</p>
+              <p className="font-semibold text-gray-900">Enhanced Template</p>
+              <p className="text-sm text-gray-600">Download comprehensive attribute template</p>
             </div>
           </button>
         </div>
       </div>
 
-      {/* Feature Highlights */}
-      <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-6 border border-purple-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Platform Features</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* AI Technology Showcase */}
+      <div className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 rounded-2xl p-8 text-white">
+        <h3 className="text-2xl font-bold mb-6">Syndicate AI Technology Stack</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { title: 'AI Field Mapping', desc: 'Intelligent field recognition and mapping' },
-            { title: 'Content Generation', desc: 'AI-powered descriptions and titles' },
-            { title: 'Compliance Check', desc: 'Marketplace rule validation' },
-            { title: 'Bulk Processing', desc: 'Process thousands of SKUs efficiently' }
-          ].map((feature, index) => (
-            <div key={index} className="text-center">
-              <div className="w-12 h-12 bg-white rounded-lg shadow-sm mx-auto mb-3 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-green-600" />
+            { title: 'Template Intelligence', desc: 'Dynamic field mapping & adaptation', icon: Target },
+            { title: 'Content Generation', desc: 'AI-powered attribute creation', icon: Brain },
+            { title: 'Quality Assurance', desc: 'Automated compliance validation', icon: CheckCircle },
+            { title: 'Performance Optimization', desc: 'Real-time processing enhancement', icon: Zap }
+          ].map((tech, index) => {
+            const Icon = tech.icon;
+            return (
+              <div key={index} className="text-center p-4 bg-white/10 rounded-xl backdrop-blur-sm">
+                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <h4 className="font-semibold mb-2">{tech.title}</h4>
+                <p className="text-sm text-gray-300">{tech.desc}</p>
               </div>
-              <h4 className="font-medium text-gray-900 mb-1">{feature.title}</h4>
-              <p className="text-sm text-gray-600">{feature.desc}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
