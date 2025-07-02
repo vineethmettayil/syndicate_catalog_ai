@@ -13,12 +13,18 @@ import {
   Zap,
   Brain,
   Target,
-  Layers
+  Layers,
+  Settings,
+  RefreshCw,
+  Eye,
+  BarChart3
 } from 'lucide-react';
 import { demoDataService } from '../services/demoDataService';
+import { useAuth } from '../hooks/useFirebase';
 import toast from 'react-hot-toast';
 
 const Dashboard = () => {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     skusProcessed: 12847,
     successRate: 96.8,
@@ -27,6 +33,8 @@ const Dashboard = () => {
     templatesAdapted: 156,
     attributesGenerated: 2341
   });
+
+  const [refreshing, setRefreshing] = useState(false);
 
   const recentActivity = [
     { id: 1, action: 'Auto-adapted Namshi template v3.0 with 12 new attributes', time: '2 minutes ago', type: 'template', icon: Target },
@@ -42,7 +50,7 @@ const Dashboard = () => {
     { name: 'Amazon', processed: 2891, success: 94.2, adaptations: 38, color: 'bg-orange-500' },
     { name: 'Centrepoint', processed: 2156, success: 96.1, adaptations: 29, color: 'bg-blue-500' },
     { name: 'Noon', processed: 1834, success: 95.3, adaptations: 22, color: 'bg-yellow-500' },
-    { name: 'Trendyol', parsed: 1456, success: 93.7, adaptations: 31, color: 'bg-red-500' },
+    { name: 'Trendyol', processed: 1456, success: 93.7, adaptations: 31, color: 'bg-red-500' },
     { name: '6th Street', processed: 1263, success: 94.9, adaptations: 18, color: 'bg-green-500' },
   ];
 
@@ -96,6 +104,45 @@ const Dashboard = () => {
     toast.success('Enhanced sample CSV downloaded with all attributes!');
   };
 
+  const handleRefreshStats = async () => {
+    setRefreshing(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setStats(prev => ({
+        ...prev,
+        skusProcessed: prev.skusProcessed + Math.floor(Math.random() * 100),
+        successRate: Math.min(99.9, prev.successRate + (Math.random() * 2 - 1)),
+        pendingReview: Math.max(0, prev.pendingReview + Math.floor(Math.random() * 20 - 10)),
+        templatesAdapted: prev.templatesAdapted + Math.floor(Math.random() * 5),
+        attributesGenerated: prev.attributesGenerated + Math.floor(Math.random() * 50)
+      }));
+      toast.success('Dashboard statistics refreshed!');
+    } catch (error) {
+      toast.error('Failed to refresh statistics');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleViewAnalytics = () => {
+    window.location.hash = '#analytics';
+    toast.success('Opening detailed analytics...');
+  };
+
+  const handleManageUsers = () => {
+    window.location.hash = '#users';
+    toast.success('Opening user management...');
+  };
+
+  const handleViewActivity = (activity) => {
+    toast.info(`Viewing details for: ${activity.action}`);
+  };
+
+  const handleMarketplaceDetails = (marketplace) => {
+    toast.info(`Opening ${marketplace.name} marketplace details`);
+  };
+
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'template': return Target;
@@ -126,6 +173,14 @@ const Dashboard = () => {
         </div>
         <div className="flex space-x-3">
           <button 
+            onClick={handleRefreshStats}
+            disabled={refreshing}
+            className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all transform hover:scale-105 shadow-lg disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+          <button 
             onClick={downloadSample}
             className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-xl hover:bg-gray-700 transition-all transform hover:scale-105 shadow-lg"
           >
@@ -153,14 +208,23 @@ const Dashboard = () => {
       <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-teal-600 rounded-2xl p-8 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="relative z-10">
-          <div className="flex items-center mb-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mr-4">
-              <Zap className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mr-4">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Syndicate AI Engine</h2>
+                <p className="text-blue-100">Next-generation template adaptation & content generation</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-2xl font-bold">Syndicate AI Engine</h2>
-              <p className="text-blue-100">Next-generation template adaptation & content generation</p>
-            </div>
+            <button 
+              onClick={handleViewAnalytics}
+              className="flex items-center px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+            >
+              <BarChart3 className="w-4 h-4 mr-2" />
+              View Analytics
+            </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-6">
             <div className="text-center">
@@ -192,7 +256,8 @@ const Dashboard = () => {
         {aiInsights.map((insight, index) => {
           const Icon = insight.icon;
           return (
-            <div key={index} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+            <div key={index} className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
+                 onClick={() => toast.info(`Viewing ${insight.title} details`)}>
               <div className="flex items-center justify-between mb-4">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gray-50 ${insight.color}`}>
                   <Icon className="w-6 h-6" />
@@ -216,19 +281,30 @@ const Dashboard = () => {
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-gray-900">Marketplace Intelligence</h3>
-            <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span>AI Active</span>
+            <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span>AI Active</span>
+              </div>
+              <button 
+                onClick={handleViewAnalytics}
+                className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+              >
+                <Eye className="w-4 h-4 mr-1" />
+                View All
+              </button>
             </div>
           </div>
           <div className="space-y-4">
             {marketplaces.map((marketplace, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300 border border-gray-100">
+              <div key={index} 
+                   className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-white rounded-xl hover:from-blue-50 hover:to-purple-50 transition-all duration-300 border border-gray-100 cursor-pointer"
+                   onClick={() => handleMarketplaceDetails(marketplace)}>
                 <div className="flex items-center space-x-4">
                   <div className={`w-4 h-4 rounded-full ${marketplace.color}`}></div>
                   <div>
                     <p className="font-semibold text-gray-900">{marketplace.name}</p>
-                    <p className="text-sm text-gray-600">{marketplace.processed?.toLocaleString() || marketplace.parsed?.toLocaleString()} SKUs processed</p>
+                    <p className="text-sm text-gray-600">{marketplace.processed?.toLocaleString()} SKUs processed</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -241,6 +317,7 @@ const Dashboard = () => {
                       <p className="font-bold text-blue-600">{marketplace.adaptations}</p>
                       <p className="text-xs text-gray-600">Adaptations</p>
                     </div>
+                    <Eye className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                   </div>
                 </div>
               </div>
@@ -250,12 +327,23 @@ const Dashboard = () => {
 
         {/* Enhanced Recent Activity */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-xl font-bold text-gray-900 mb-6">AI Activity Stream</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl font-bold text-gray-900">AI Activity Stream</h3>
+            <button 
+              onClick={handleRefreshStats}
+              className="flex items-center px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
+            >
+              <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
           <div className="space-y-4">
             {recentActivity.map((activity) => {
               const Icon = getActivityIcon(activity.type);
               return (
-                <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-xl hover:bg-gray-50 transition-colors">
+                <div key={activity.id} 
+                     className="flex items-start space-x-3 p-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+                     onClick={() => handleViewActivity(activity)}>
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${getActivityColor(activity.type)}`}>
                     <Icon className="w-4 h-4" />
                   </div>
@@ -263,6 +351,7 @@ const Dashboard = () => {
                     <p className="text-sm font-medium text-gray-900 leading-relaxed">{activity.action}</p>
                     <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
                   </div>
+                  <Eye className="w-4 h-4 text-gray-400 hover:text-gray-600" />
                 </div>
               );
             })}
@@ -317,7 +406,16 @@ const Dashboard = () => {
 
       {/* AI Technology Showcase */}
       <div className="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 rounded-2xl p-8 text-white">
-        <h3 className="text-2xl font-bold mb-6">Syndicate AI Technology Stack</h3>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-2xl font-bold">Syndicate AI Technology Stack</h3>
+          <button 
+            onClick={handleManageUsers}
+            className="flex items-center px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors"
+          >
+            <Users className="w-4 h-4 mr-2" />
+            Manage Users
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
             { title: 'Template Intelligence', desc: 'Dynamic field mapping & adaptation', icon: Target },
@@ -327,7 +425,8 @@ const Dashboard = () => {
           ].map((tech, index) => {
             const Icon = tech.icon;
             return (
-              <div key={index} className="text-center p-4 bg-white/10 rounded-xl backdrop-blur-sm">
+              <div key={index} className="text-center p-4 bg-white/10 rounded-xl backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-colors"
+                   onClick={() => toast.info(`Learning more about ${tech.title}`)}>
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3">
                   <Icon className="w-6 h-6 text-white" />
                 </div>
